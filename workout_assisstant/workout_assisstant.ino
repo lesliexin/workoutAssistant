@@ -77,9 +77,9 @@ void loop(){
   delay(500);
 
    
-  if(check_consecutive_tilt(wristTilted[])){
-     // alerts user that they are tilting their wrist (turn on red LED)
-  }
+//  if(check_consecutive_tilt(wristTilted[])){
+//     // alerts user that they are tilting their wrist (turn on red LED)
+//  }
 
      
 
