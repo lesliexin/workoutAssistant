@@ -22,19 +22,19 @@ int num_of_red = 0;
 bool wristTilted[4] = {false, false, false, false}; //stores checks of tilted wrist 
 
 void setup(){
-  cli(); //disable interrupts 
+//  cli(); //disable interrupts 
  
-  // setup MPU6050
+//   setup MPU6050
   Wire.begin();
   Wire.beginTransmission(MPU_addr);
   Wire.write(0x6B);
   Wire.write(0);
   Wire.endTransmission(true);
-   pinMode(interuptPin, INPUT);
+  pinMode(interuptPin, INPUT);
   Serial.begin(9600);
 
   DDRB |= (1 << 5); //enable LED port for writing
-//  attachInterrupt(0, pin_ISR, RISING);
+  attachInterrupt(0, pin_ISR, RISING);
   sei(); //enable interrupts 
 }
 
@@ -58,6 +58,7 @@ bool check_out_of_range(double x){
 }
 
 void loop(){
+  Serial.println("wirubwru");
 
   // set up MPU6050
   Wire.beginTransmission(MPU_addr);
@@ -102,7 +103,12 @@ void loop(){
      PORTB &= ~(1 << 5);  
   }
 
-  delay(200);
+  delay(500);
+}
+
+void pin_ISR()
+{
+  Serial.println("INTERRUPT!!!");
 }
 
 
