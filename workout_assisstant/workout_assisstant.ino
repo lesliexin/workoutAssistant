@@ -39,9 +39,13 @@ volatile bool pause = false;
 volatile bool doneWorkout = false; 
 volatile bool doneSet = false; 
 
+// Incrementer for number of times overflow occurs 
+int timerOverflow = 0; 
+
+
 
 void setup(){
-//  cli(); //disable interrupts 
+  cli(); //disable interrupts 
  
 //   setup MPU6050
   Wire.begin();
@@ -54,6 +58,15 @@ void setup(){
 
   DDRB |= (1 << 5); //enable LED port for writing
   attachInterrupt(0, pin_ISR, RISING);
+  
+  //setting up timer 1 for: done set, 
+  TCCR1A=0x0;//resetTimer1controlregisters
+  TCCR1B=0x0;//setWGM_2:0=000
+  TCCR1B=0x4;//setTimer1toclk/256
+  TIMSK1=0x6;//enableOCRinterruptsbits
+  OCR1A=10000;//setOutputCompareValueA
+  OCR1B=50000;//setOutputCompareValueB
+
   sei(); //enable interrupts 
 
   //setting up buttons as input 
@@ -61,8 +74,8 @@ void setup(){
   pinMode(pausePin, INPUT_PULLUP);
   pinMode(doneWorkoutPin, INPUT_PULLUP);
   pinMode(doneSetPin, INPUT_PULLUP);
-}
 
+}
 
 bool check_consecutive_tilt(bool wristTilted[]){
   for(int i=0; i<4; i++){
@@ -92,18 +105,22 @@ void output_status(){
     Serial.println(y); //INSERT REPS HERE 
     Serial.print("Mistakes: ");
     Serial.println(z); //INSERT MISTAKES HERE 
+    reset = false; 
   } 
   else if(pause){
     Serial.print("WORKOUT PAUSED");
     Serial.println(" ");
+    pause = false; 
   }
   else if(doneWorkout){
     Serial.print("WORKOUT COMPLETED");
     Serial.println(" ");
+    doneWorkout = false; 
   }
   else if(doneSet){
     Serial.print("SET COMPLETED");
     Serial.println(" ");  
+    doneSet = false; 
   }
   
 }
@@ -155,13 +172,10 @@ void loop(){
      PORTB &= ~(1 << 5);  
   }
 
-  // dealing with pressed buttons 
+  // outputting status based on pressed button 
   output_status(); 
-  reset = false; 
-  pause = false; 
-  doneWorkout = false; 
-  doneSet = false; 
-  
+
+
   delay(500);
 }
 
@@ -187,6 +201,11 @@ void pin_ISR()
   else if(doneSetButtonState == HIGH){
     doneSet = true; 
   }
+}
+
+ISR (TIMER1_OVF_vect){
+  TCNT1 = 42420; // count up to 0xFFFFF, overflow to 0, and then start again from 42420
+  timerOverflow++; 
 }
 
 
