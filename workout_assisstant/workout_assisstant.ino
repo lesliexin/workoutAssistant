@@ -21,6 +21,25 @@ int num_of_red = 0;
 
 bool wristTilted[4] = {false, false, false, false}; //stores checks of tilted wrist 
 
+//setting up button ports 
+const int resetPin = 8;
+const int pausePin = 9;
+const int doneWorkoutPin = 10;
+const int doneSetPin = 11; 
+
+// variables to read button state 
+int resetButtonState = 0; 
+int pauseButtonState = 0; 
+int doneWorkoutButtonState = 0; 
+int doneSetButtonState = 0; 
+
+// variables to change in interrupt handler if pressed is true for respective button 
+volatile bool reset = false; 
+volatile bool pause = false; 
+volatile bool doneWorkout = false; 
+volatile bool doneSet = false; 
+
+
 void setup(){
 //  cli(); //disable interrupts 
  
@@ -36,6 +55,12 @@ void setup(){
   DDRB |= (1 << 5); //enable LED port for writing
   attachInterrupt(0, pin_ISR, RISING);
   sei(); //enable interrupts 
+
+  //setting up buttons as input 
+  pinMode(resetPin, INPUT_PULLUP);
+  pinMode(pausePin, INPUT_PULLUP);
+  pinMode(doneWorkoutPin, INPUT_PULLUP);
+  pinMode(doneSetPin, INPUT_PULLUP);
 }
 
 
@@ -55,6 +80,32 @@ bool check_out_of_range(double x){
   else{
     return false;
   }
+}
+
+void output_status(){
+  if(reset){
+    Serial.print("RESET");
+    Serial.println(" ");
+    Serial.print("Time Elapsed");
+    Serial.println(x); //INSERT TIME HERE 
+    Serial.print("Reps Completed");
+    Serial.println(y); //INSERT REPS HERE 
+    Serial.print("Mistakes: ");
+    Serial.println(z); //INSERT MISTAKES HERE 
+  } 
+  else if(pause){
+    Serial.print("WORKOUT PAUSED");
+    Serial.println(" ");
+  }
+  else if(doneWorkout){
+    Serial.print("WORKOUT COMPLETED");
+    Serial.println(" ");
+  }
+  else if(doneSet){
+    Serial.print("SET COMPLETED");
+    Serial.println(" ");  
+  }
+  
 }
 
 void loop(){
@@ -94,7 +145,8 @@ void loop(){
   }
 
   wristTilted[0] = check_out_of_range(x);
-   
+
+  // checking for tilted wrists 
   if(check_consecutive_tilt(wristTilted)){
     PORTB |= (1 << 5);
     delay (300);  
@@ -103,12 +155,38 @@ void loop(){
      PORTB &= ~(1 << 5);  
   }
 
+  // dealing with pressed buttons 
+  output_status(); 
+  reset = false; 
+  pause = false; 
+  doneWorkout = false; 
+  doneSet = false; 
+  
   delay(500);
 }
 
+// handles a press of button (triggers on press) 
 void pin_ISR()
 {
-  Serial.println("INTERRUPT!!!");
+  // checks which button is pressed 
+  resetButtonState = digitalRead(resetPin);
+  pauseButtonState = digitalRead(pausePin);
+  doneWorkoutButtonState = digitalRead(doneWorkoutPin);
+  doneSetButtonState = digitalRead(doneSetPin);
+
+  // changes volatile buttons appropriately 
+  if (resetButtonState == HIGH){
+    reset = true; 
+  }
+  else if(pauseButtonState == HIGH){
+    pause = true; 
+  }
+  else if(doneWorkoutButtonState == HIGH){
+    doneWorkout = true; 
+  }
+  else if(doneSetButtonState == HIGH){
+    doneSet = true; 
+  }
 }
 
 
