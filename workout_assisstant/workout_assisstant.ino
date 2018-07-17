@@ -49,6 +49,9 @@ volatile long outputTime = 0;
 // Checking if pause is already enabled 
 volatile bool pauseAlreadypressed = false; 
 
+// reset time for workout
+double resetTime = 0; 
+
 void setup(){
   cli(); //disable interrupts 
  
@@ -142,33 +145,48 @@ void output_status(){
     Serial.println(resetTime); //INSERT TIME HERE 
     Serial.print("Reps Completed");
     Serial.println(y); //INSERT REPS HERE 
-    Serial.print("Mistakes: ");
-    Serial.println(z); //INSERT MISTAKES HERE 
+    Serial.print("Mistakes in workout: ");
+    Serial.println(num_of_red); //INSERT MISTAKES HERE 
     outputTime = 0; //overflow value is now zero 
+    num_of_red = 0; 
     reset = false; 
   } 
   else if(pause){
+    double pauseTime = 1/((1/(outputTime*65536))*(16000000/1024));  
     Serial.print("WORKOUT PAUSED");
     Serial.println(" ");
     Serial.print("Time Elapsed");
-    Serial.println(resetTime); //INSERT TIME HERE 
+    Serial.println(pauseTime); //INSERT TIME HERE 
     Serial.print("Reps Completed");
     Serial.println(y); //INSERT REPS HERE 
-    Serial.print("Mistakes: ");
-    Serial.println(z); //INSERT MISTAKES HERE 
-    outputTime = 0; //overflow value is now zero 
-    reset = false; 
-    pause = false; 
+    Serial.print("Mistakes in workout: ");
+    Serial.println(num_of_red); //INSERT MISTAKES HERE 
   }
   else if(doneWorkout){
+    double workoutTime = 1/((1/(outputTime*65536))*(16000000/1024)); 
     Serial.print("WORKOUT COMPLETED");
     Serial.println(" ");
+    Serial.print("Time Elapsed");
+    Serial.println(workoutTime); //INSERT TIME HERE 
+    Serial.print("Reps Completed");
+    Serial.println(y); //INSERT REPS HERE 
+    Serial.print("Mistakes in workout: ");
+    Serial.println(num_of_red); //INSERT MISTAKES HERE
+    outputTime = 0; //overflow value is now zero  
     doneWorkout = false; 
+    num_of_red = 0; 
   }
   else if(doneSet){
+    double setTime = 1/((1/(outputTime*65536))*(16000000/1024)); 
     Serial.print("SET COMPLETED");
     Serial.println(" ");  
-    doneSet = false; 
+    Serial.print("Time Elapsed");
+    Serial.println(setTime); //INSERT TIME HERE 
+    Serial.print("Reps Completed");
+    Serial.println(y); //INSERT REPS HERE 
+    Serial.print("Mistakes in workout: ");
+    Serial.println(num_of_red); //INSERT MISTAKES HERE 
+    doneWorkout = false; 
   }
   
 }
@@ -236,19 +254,23 @@ void pin_ISR()
   else if(pauseButtonState == HIGH){
     if (pause == false ){
       outputTime = TCNT1;
-      TCNTI = 0; //stop;  
+      TCNT1 = 0; //stop timer1???   
     }
     else if (pause == true) {
-      
+      TCNT1 = outputTime; //start from last value of outputTime  
     } 
     pause = !pause;
 
   }
   else if(doneWorkoutButtonState == HIGH){
     doneWorkout = true; 
+    outputTime = TCNT1; 
+    TCNT1 = 0; //stop timer1???   
   }
   else if(doneSetButtonState == HIGH){
-    doneSet = true; 
+    doneSet = true;
+    outputTime = TCNT1;
+    TCNT1 = 0; //stop timer1???  
   }
 }
 
