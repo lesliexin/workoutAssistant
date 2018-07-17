@@ -121,7 +121,7 @@ int checkX_out_of_range(double x){
 
 void output_status(){
   if(reset){
-    Serial.print("RESET");
+//    Serial.print("RESET");
     Serial.println(" ");
     Serial.print("Time Elapsed");
     Serial.println(x); //INSERT TIME HERE 
@@ -131,15 +131,15 @@ void output_status(){
     Serial.println(num_of_reds); //INSERT MISTAKES HERE 
   } 
   else if(pause){
-    Serial.print("WORKOUT PAUSED");
+//    Serial.print("WORKOUT PAUSED");
     Serial.println(" ");
   }
   else if(doneWorkout){
-    Serial.print("WORKOUT COMPLETED");
+//    Serial.print("WORKOUT COMPLETED");
     Serial.println(" ");
   }
   else if(doneSet){
-    Serial.print("SET COMPLETED");
+//    Serial.print("SET COMPLETED");
     Serial.println(" ");  
   }
   
@@ -197,6 +197,7 @@ void loop(){
 // handles a press of button (triggers on press) 
 void pin_ISR()
 {
+  Serial.println("INTERRUPT OCCURRED!");
   // checks which button is pressed 
   resetButtonState = digitalRead(resetPin);
   pauseButtonState = digitalRead(pausePin);
