@@ -17,7 +17,8 @@ double x;
 double y;
 double z;
 
-int num_of_red = 0;
+int num_of_reds = 0;
+bool already_red = true;
  
 
 int wristTilted[4] = {1, 1, 1, 1};
@@ -41,10 +42,9 @@ volatile bool doneWorkout = false;
 volatile bool doneSet = false; 
 
 
-void setup(){
-//  cli(); //disable interrupts 
+void setup(){ 
  
-//   setup MPU6050
+  //   setup MPU6050
   Wire.begin();
   Wire.beginTransmission(MPU_addr);
   Wire.write(0x6B);
@@ -76,6 +76,7 @@ void check_consecutive_tilt(int wristTilted[]){
       digitalWrite(4, LOW);
       digitalWrite(6, LOW);
       digitalWrite(5, HIGH);
+      already_red = false;
       return; 
     }
     else if (wristTilted[i] == 2){
@@ -84,15 +85,21 @@ void check_consecutive_tilt(int wristTilted[]){
   }
 
   digitalWrite(5, LOW);
+  if (!already_red){
+    num_of_reds++;
+  }
+  
   if (rightTiltCounter == 4){
     Serial.println("RIGHT LED");
     digitalWrite(6, HIGH);
+    already_red = true;
     return;
   }
   
   else{
     Serial.println("LEFT LED");
     digitalWrite(4, HIGH);
+    already_red = true;
     return;
   }
 
@@ -101,10 +108,10 @@ void check_consecutive_tilt(int wristTilted[]){
 }
 
 int checkX_out_of_range(double x){
-  if (x > 30.00 && x <= 180.00){
+  if (x > 20.00 && x <= 180.00){
      return 2; 
   }
-  else if (x > 180.00 && x < 330.00){
+  else if (x > 180.00 && x < 340.00){
      return 0; 
   }
   else {
@@ -121,7 +128,7 @@ void output_status(){
     Serial.print("Reps Completed");
     Serial.println(y); //INSERT REPS HERE 
     Serial.print("Mistakes: ");
-    Serial.println(z); //INSERT MISTAKES HERE 
+    Serial.println(num_of_reds); //INSERT MISTAKES HERE 
   } 
   else if(pause){
     Serial.print("WORKOUT PAUSED");
@@ -160,13 +167,13 @@ void loop(){
   z= RAD_TO_DEG * (atan2(-yAng, -xAng)+PI);
 
   // printing values
-  Serial.print("AngleX= ");
-  Serial.println(x);
-  Serial.print("AngleY= ");
-  Serial.println(y);
-  Serial.print("AngleZ= ");
-  Serial.println(z);
-  Serial.println("-----------------------------------------");
+//  Serial.print("AngleX= ");
+//  Serial.println(x);
+//  Serial.print("AngleY= ");
+//  Serial.println(y);
+//  Serial.print("AngleZ= ");
+//  Serial.println(z);
+//  Serial.println("-----------------------------------------");
 
   // record new values
   for (int i = 3; i > 0; i--){
@@ -184,7 +191,7 @@ void loop(){
   doneWorkout = false; 
   doneSet = false; 
 
-   delay(200);
+   delay(500);
 }
 
 // handles a press of button (triggers on press) 
