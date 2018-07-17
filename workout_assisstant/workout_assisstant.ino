@@ -75,13 +75,9 @@ void setup(){
   TCCR1A=0x0;//resetTimer1controlregisters
   TCCR1B=0x0;//setWGM_2:0=000
   TCCR1B=0x4;//setTimer1toclk/256
-  TIMSK1=0x6;//enableOCRinterruptsbits
-  OCR1A=10000;//setOutputCompareValueA
-  OCR1B=50000;//setOutputCompareValueB
 
   TCCR0B |= _BV(CS02); // Set or Clear bit CS02 of register TCCROB, the most signifigant bit of Timer0's prescaler. See page 110 of the datasheet. TCCR0B |= (_BV(CS02) sets CS02 to HIGH, TCCR0B &= ~(_BV(CS02) sets CS02 to LOW.
   TCCR0B |= _BV(CS00); // Set or Clear bit CS00 of register TCCROB, the least signifigant bit of Timer0's prescaler. See page 110 of the datasheet. TCCR0B |= (_BV(CS00) sets CS00 to HIGH, TCCR0B &= ~(_BV(CS00) sets CS00 to LOW.
-
 
   sei(); //enable interrupts 
 
@@ -245,7 +241,7 @@ void pin_ISR()
   doneWorkoutButtonState = digitalRead(doneWorkoutPin);
   doneSetButtonState = digitalRead(doneSetPin);
 
-  // changes volatile buttons appropriately 
+  // changes volatile button variables appropriately 
   if (resetButtonState == HIGH){
     reset = true; 
     outputTime = TCNT1; 
