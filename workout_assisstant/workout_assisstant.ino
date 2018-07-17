@@ -251,6 +251,7 @@ void pin_ISR()
     outputTime = TCNT1; 
  //   TCNT1 = 0; // Start from beginning
   }
+  
   else if(pauseButtonState == HIGH){
     if (pause == false ){
       outputTime = TCNT1;
@@ -262,16 +263,19 @@ void pin_ISR()
     pause = !pause;
 
   }
+  
   else if(doneWorkoutButtonState == HIGH){
     doneWorkout = true; 
     outputTime = TCNT1; 
     TCNT1 = 0; //stop timer1???   
   }
+  
   else if(doneSetButtonState == HIGH){
     doneSet = true;
     outputTime = TCNT1;
     TCNT1 = 0; //stop timer1???  
   }
+  
 }
 
 ISR (TIMER1_OVF_vect){
