@@ -1,7 +1,3 @@
-//Written by Ahmet Burkay KIRNIK
-//TR_CapaFenLisesi
-//Measure Angle with a MPU-6050(GY-521)
-
 #include<Wire.h>
 
 const int interuptPin = 2;        //the pin receiving the input signal to be measured
@@ -31,8 +27,7 @@ bool weight_up_history[3] = {false, false, false};
 float weight_history_time[3] = {0.00, 0.00, 0.00};
 
 //setting up button pins 
-const int resetPin = 8;
-const int pausePin = 9;
+const int resetPin = 9;
 const int doneWorkoutPin = 10;
 const int doneSetPin = 11; 
 
@@ -45,21 +40,18 @@ volatile int doneSetButtonState = 0;
 // variables to change in interrupt handler if pressed is true for respective button 
 volatile bool reset = false; 
 volatile bool pause = false; 
+volatile bool already_paused = false;
 volatile bool doneWorkout = false; 
 volatile bool doneSet = false; 
 
-// Incrementer for number of times overflow occurs 
-int timerOverflow = 0; 
+// stores events after each overflow occurs 
+volatile long timerOverflow = 0; 
 
-// Variable to store temporary time from timer 
-volatile long outputTime = 0; 
+// stores overflow events from pre-pausing or pre-doneSet period 
+long prevOverflow = 0; 
 
-// Checking if pause is already enabled 
-volatile bool pauseAlreadypressed = false; 
-
-
-// reset time for workout
-double resetTime = 0; 
+// Variable to store instantenous events completed from the timer 
+volatile long currentTime = 0; 
 
 void setup(){
  
@@ -77,22 +69,23 @@ void setup(){
   pinMode(6, OUTPUT);
 
   DDRB |= (1 << 5); //enable LED port for writing
-  attachInterrupt(0, pin_ISR, RISING);
-  
+    
   //setting up timer 1 for: done set, 
   TCCR1A=0;//resetTimer1controlregisters
   TCCR1B=0;//setWGM_2:0=000
+  TIMSK1 = 0x1;
   TCCR1B |= (1 << CS12);  
   TCCR1B &= ~(1 << CS11);
   TCCR1B |= (1 << CS10);
 
-  sei(); //enable interrupts 
-
   //setting up buttons as input 
   pinMode(resetPin, INPUT);
-  pinMode(pausePin, INPUT);
   pinMode(doneWorkoutPin, INPUT);
   pinMode(doneSetPin, INPUT);
+
+  //setup the interrupt for buttons 
+  attachInterrupt(0, pin_ISR, RISING);
+  sei(); //enable interrupts 
 
 }
 
@@ -130,8 +123,6 @@ void check_consecutive_tilt(int wristTilted[]){
     return;
   }
 
-  //    PORTB |= (1 << 5);
-  //     PORTB &= ~(1 << 5); 
 }
 
 int checkX_out_of_range(double x){
@@ -146,58 +137,124 @@ int checkX_out_of_range(double x){
   }
 }
 
+double get_time(long of, long ct){
+  double totalTime = 0; 
+  totalTime = (of+ct)/((double)15625);
+  return totalTime; 
+}
+
+void breakTime(){
+  TCNT1 = 0; 
+  timerOverflow = 0; 
+  Serial.println("Take a break for 15 seconds!");
+  bool firstAlreadyOutputted = false;
+  bool midAlreadyOutputted = false; 
+  bool lastAlreadyOutputted = false; 
+  
+  // timer for 15 seconds
+  while ((timerOverflow + TCNT1) <= 78125){
+    if(firstAlreadyOutputted){}
+    else{
+      Serial.println("15 seconds left"); 
+      Serial.print("");
+      firstAlreadyOutputted = true; 
+    }
+  }
+      
+  TCNT1 = 0; 
+  timerOverflow = 0; 
+    
+  while ((timerOverflow + TCNT1) <= 78125){
+    if(midAlreadyOutputted){
+      //nothing
+      }
+    else{
+      Serial.println("10 seconds left"); 
+      Serial.print("");
+      midAlreadyOutputted = true; 
+    }
+  }
+
+  TCNT1 = 0; 
+  timerOverflow = 0;
+
+  while ((timerOverflow + TCNT1) <= 78125){
+    if(lastAlreadyOutputted){}
+    else{
+      Serial.println("5 seconds left"); 
+      Serial.print("");
+      lastAlreadyOutputted = true; 
+    }     
+  }
+  
+  Serial.println("Start next set!");
+}
+
 void output_status(){
   if(reset){
-    double resetTime = 1/((1/(outputTime*65536))*(16000000/1024));    
+    double resetTime = get_time(timerOverflow, currentTime);
+    Serial.println("\n-----------------------------------------");    
     Serial.print("RESET");
     Serial.println(" ");
-    Serial.print("Time Elapsed");
+    Serial.print("Time Elapsed: ");
     Serial.println(resetTime); //INSERT TIME HERE 
-    Serial.print("Reps Completed");
-    Serial.println(y); //INSERT REPS HERE 
+//    Serial.print("Reps Completed: ");
+//    Serial.println(num_of_reps); //INSERT REPS HERE 
     Serial.print("Mistakes in workout: ");
     Serial.println(num_of_reds); //INSERT MISTAKES HERE 
-    outputTime = 0; //overflow value is now zero 
-    num_of_reds = 0; 
-    TCNT1 = 0; 
+    Serial.println("-----------------------------------------");  
+    Serial.println("WORKOUT STARTED");  
+    Serial.println("-----------------------------------------\n");   
+    timerOverflow = 0; //overflow value is now zero 
+    currentTime = 0; 
+    num_of_reds = 0;
     reset = false; 
   } 
   else if(pause){
-    double pauseTime = 1/((1/(outputTime*65536))*(16000000/1024));  
-//    Serial.print("WORKOUT PAUSED");
-//    Serial.println(" ");
-//    Serial.print("Time Elapsed");
-//    Serial.println(pauseTime); //INSERT TIME HERE 
-//    Serial.print("Reps Completed");
-//    Serial.println(y); //INSERT REPS HERE 
-//    Serial.print("Mistakes in workout: ");
-//    Serial.println(num_of_reds); //INSERT MISTAKES HERE 
+    double pauseTime = get_time(prevOverflow, currentTime);  
+    Serial.println("\n-----------------------------------------");
+    Serial.print("WORKOUT PAUSED");
+    Serial.println(" ");
+    Serial.print("Time Elapsed: ");
+    Serial.println(pauseTime); //INSERT TIME HERE 
+//    Serial.print("Reps Completed: ");
+//    Serial.println(num_of_reps); //INSERT REPS HERE 
+    Serial.print("Mistakes in workout: ");
+    Serial.println(num_of_reds); //INSERT MISTAKES HERE 
+    Serial.println("-----------------------------------------\n");  
   }
   else if(doneWorkout){
-    double workoutTime = 1/((1/(outputTime*65536))*(16000000/1024)); 
+    double workoutTime = get_time(timerOverflow, currentTime);  
+    Serial.println("\n-----------------------------------------");
     Serial.print("WORKOUT COMPLETED");
     Serial.println(" ");
-    Serial.print("Time Elapsed");
+    Serial.print("Time Elapsed: ");
     Serial.println(workoutTime); //INSERT TIME HERE 
-    Serial.print("Reps Completed");
-    Serial.println(y); //INSERT REPS HERE 
+//    Serial.print("Reps Completed: ");
+//    Serial.println(num_of_reps); //INSERT REPS HERE 
     Serial.print("Mistakes in workout: ");
     Serial.println(num_of_reds); //INSERT MISTAKES HERE
-    outputTime = 0; //overflow value is now zero  
-    doneWorkout = false; 
+    Serial.println("-----------------------------------------\n");
+    Serial.println("Press RESET to start again!");
+    timerOverflow = 0; //overflow value is now zero  
+    currentTime = 0; 
     num_of_reds = 0; 
+    doneWorkout = false; 
   }
   else if(doneSet){
-    double setTime = 1/((1/(outputTime*65536))*(16000000/1024)); 
+    double setTime = get_time(timerOverflow, currentTime);  
+    Serial.println("\n-----------------------------------------");
     Serial.print("SET COMPLETED");
     Serial.println(" ");  
     Serial.print("Time Elapsed");
     Serial.println(setTime); //INSERT TIME HERE 
-    Serial.print("Reps Completed");
-    Serial.println(y); //INSERT REPS HERE 
+//    Serial.print("Reps Completed");
+//    Serial.println(num_of_reps); //INSERT REPS HERE 
     Serial.print("Mistakes in workout: ");
-    Serial.println(num_of_reds); //INSERT MISTAKES HERE 
-    doneWorkout = false; 
+    Serial.println(num_of_reds); //INSERT MISTAKES HERE
+    Serial.println("-----------------------------------------\n");
+    breakTime();  
+    doneSet = false; 
   }
   
 }
@@ -226,11 +283,6 @@ bool set_weight_status(){
     weight_down = false;
     weight_up = false;
   }
-//  Serial.print("Weight up: ");
-//  Serial.println(weight_up);
-//  Serial.print("Weight down: ");
-//  Serial.println(weight_down);
-//  Serial.println("-----------------------------------------");
 }
 
 bool check_rep_completed(){
@@ -314,77 +366,74 @@ void loop(){
   wristTilted[0] = checkX_out_of_range(x);
    
   check_consecutive_tilt(wristTilted);
-
-  set_weight_status();
-  record_rep_history();
-  check_rep_completed();
+//
+//  set_weight_status();
+//  record_rep_history();
+//  check_rep_completed();
   
   resetButtonState = digitalRead(resetPin);
   doneWorkoutButtonState = digitalRead(doneWorkoutPin);
   doneSetButtonState = digitalRead(doneSetPin);
 
-  // outputting status based on pressed button 
-  output_status();
-
-  for (int i = 0; i < 3; i++){
-    Serial.print(weight_up_history[i]); 
-  }
-  Serial.println();
+//  for (int i = 0; i < 3; i++){
+//    Serial.print(weight_up_history[i]); 
+//  }
+//  Serial.println();
+//  
   
-   delay(500);
-}
-
-
-// handles a press of button (triggers on press) 
-void pin_ISR()
-{
-
-  pauseButtonState = digitalRead(pausePin);
-
-//  Serial.print("reset: ");
-//  Serial.println(resetButtonState);
-//  Serial.print("pause: ");
-//  Serial.println(pauseButtonState);
-//  Serial.print("done workout: ");
-//  Serial.println(doneWorkoutButtonState);
-//  Serial.print("done set: ");
-//  Serial.println(doneSetButtonState);
-
-  // changes volatile button variables appropriately 
-  if (resetButtonState == HIGH){
-    reset = true; 
-    outputTime = TCNT1; 
-  }
-  
-  else if(pauseButtonState == HIGH){
-    if (pause == false ){
-      outputTime = TCNT1;
-      TCNT1 = 0; //stop timer1???   
-    }
-    else if (pause == true) {
-      TCNT1 = outputTime; //start from last value of outputTime  
-    } 
-    pause = !pause;
-
+  // polling for reset, doneworkout and done set 
+  if(resetButtonState == HIGH){
+    reset = true;
+    currentTime = TCNT1; 
+    // outputting status based on pressed button 
+    output_status();  
+    TCNT1 = 0; // reset timer 
   }
   
   else if(doneWorkoutButtonState == HIGH){
     doneWorkout = true; 
-    outputTime = TCNT1; 
-    TCNT1 = 0; //stop timer1???   
+    currentTime = TCNT1;  
+    output_status();
+    TCNT1 = 0; // reset timer 
   }
   
   else if(doneSetButtonState == HIGH){
-    doneSet = true;
-    outputTime = TCNT1;
-    TCNT1 = 0; //stop timer1???  
+    doneSet = true; 
+    currentTime = TCNT1;
+    prevOverflow = timerOverflow;   
+    output_status();
+    TCNT1 = currentTime; 
+    timerOverflow = prevOverflow; 
+  }
+
+  else if(pause && !already_paused){
+    output_status(); 
+    already_paused = true;
   }
   
+   delay(100);
+}
+
+// handles a press of pause button 
+void pin_ISR()
+{
+  if (pause == false){
+    currentTime = TCNT1;
+    prevOverflow = timerOverflow;   
+  }
+  else if (pause == true) {
+    already_paused = false;
+    Serial.println("\n-----------------------------------------");
+    Serial.println("WORKOUT UNPAUSED");
+    Serial.println("-----------------------------------------\n");
+    TCNT1 = currentTime; //start from last value of outputTime  
+    timerOverflow = prevOverflow; 
+  } 
+  pause = !pause;
 }
 
 ISR (TIMER1_OVF_vect){
-  TCNT1 = 42420; // count up to 0xFFFFF, overflow to 0, and then start again from 42420
-  timerOverflow++; 
+  timerOverflow += 65536; 
 } 
 
 
