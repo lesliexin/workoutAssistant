@@ -23,17 +23,17 @@ bool already_red = true;
 
 int wristTilted[4] = {1, 1, 1, 1};
 
-//setting up button ports 
+//setting up button pins 
 const int resetPin = 8;
 const int pausePin = 9;
 const int doneWorkoutPin = 10;
 const int doneSetPin = 11; 
 
 // variables to read button state 
-int resetButtonState = 0; 
-int pauseButtonState = 0; 
-int doneWorkoutButtonState = 0; 
-int doneSetButtonState = 0; 
+volatile int resetButtonState = 0; 
+volatile int pauseButtonState = 0; 
+volatile int doneWorkoutButtonState = 0; 
+volatile int doneSetButtonState = 0; 
 
 // variables to change in interrupt handler if pressed is true for respective button 
 volatile bool reset = false; 
@@ -41,10 +41,20 @@ volatile bool pause = false;
 volatile bool doneWorkout = false; 
 volatile bool doneSet = false; 
 
+// Incrementer for number of times overflow occurs 
+int timerOverflow = 0; 
 
-void setup(){ 
+// Variable to store temporary time from timer 
+volatile long outputTime = 0; 
+
+// Checking if pause is already enabled 
+volatile bool pauseAlreadypressed = false; 
+
+double resetTime;
+
+void setup(){
  
-  //   setup MPU6050
+  // setup MPU6050
   Wire.begin();
   Wire.beginTransmission(MPU_addr);
   Wire.write(0x6B);
@@ -58,16 +68,19 @@ void setup(){
   pinMode(6, OUTPUT);
 
   DDRB |= (1 << 5); //enable LED port for writing
-  attachInterrupt(0, pin_ISR, RISING);
+//  attachInterrupt(0, pin_ISR, RISING);
+  
+  //setting up timer 1 for: done set, 
+
   sei(); //enable interrupts 
 
   //setting up buttons as input 
-  pinMode(resetPin, INPUT_PULLUP);
-  pinMode(pausePin, INPUT_PULLUP);
-  pinMode(doneWorkoutPin, INPUT_PULLUP);
-  pinMode(doneSetPin, INPUT_PULLUP);
-}
+  pinMode(resetPin, INPUT);
+  pinMode(pausePin, INPUT);
+  pinMode(doneWorkoutPin, INPUT);
+  pinMode(doneSetPin, INPUT);
 
+}
 
 void check_consecutive_tilt(int wristTilted[]){
   int rightTiltCounter = 0;
@@ -119,32 +132,6 @@ int checkX_out_of_range(double x){
   }
 }
 
-void output_status(){
-  if(reset){
-//    Serial.print("RESET");
-    Serial.println(" ");
-    Serial.print("Time Elapsed");
-    Serial.println(x); //INSERT TIME HERE 
-    Serial.print("Reps Completed");
-    Serial.println(y); //INSERT REPS HERE 
-    Serial.print("Mistakes: ");
-    Serial.println(num_of_reds); //INSERT MISTAKES HERE 
-  } 
-  else if(pause){
-//    Serial.print("WORKOUT PAUSED");
-    Serial.println(" ");
-  }
-  else if(doneWorkout){
-//    Serial.print("WORKOUT COMPLETED");
-    Serial.println(" ");
-  }
-  else if(doneSet){
-//    Serial.print("SET COMPLETED");
-    Serial.println(" ");  
-  }
-  
-}
-
 void loop(){
 
   // set up MPU6050
@@ -167,13 +154,13 @@ void loop(){
   z= RAD_TO_DEG * (atan2(-yAng, -xAng)+PI);
 
   // printing values
-//  Serial.print("AngleX= ");
-//  Serial.println(x);
-//  Serial.print("AngleY= ");
-//  Serial.println(y);
-//  Serial.print("AngleZ= ");
-//  Serial.println(z);
-//  Serial.println("-----------------------------------------");
+  Serial.print("AngleX= ");
+  Serial.println(x);
+  Serial.print("AngleY= ");
+  Serial.println(y);
+  Serial.print("AngleZ= ");
+  Serial.println(z);
+  Serial.println("-----------------------------------------");
 
   // record new values
   for (int i = 3; i > 0; i--){
@@ -184,39 +171,17 @@ void loop(){
    
   check_consecutive_tilt(wristTilted);
 
-  // dealing with pressed buttons 
-  output_status(); 
-  reset = false; 
-  pause = false; 
-  doneWorkout = false; 
-  doneSet = false; 
-
+  // outputting status based on pressed button 
+//  output_status(); 
+  
    delay(500);
 }
 
-// handles a press of button (triggers on press) 
-void pin_ISR()
-{
-  Serial.println("INTERRUPT OCCURRED!");
-  // checks which button is pressed 
-  resetButtonState = digitalRead(resetPin);
-  pauseButtonState = digitalRead(pausePin);
-  doneWorkoutButtonState = digitalRead(doneWorkoutPin);
-  doneSetButtonState = digitalRead(doneSetPin);
 
-  // changes volatile buttons appropriately 
-  if (resetButtonState == HIGH){
-    reset = true; 
-  }
-  else if(pauseButtonState == HIGH){
-    pause = true; 
-  }
-  else if(doneWorkoutButtonState == HIGH){
-    doneWorkout = true; 
-  }
-  else if(doneSetButtonState == HIGH){
-    doneSet = true; 
-  }
-}
+
+ISR (TIMER1_OVF_vect){
+  TCNT1 = 42420; // count up to 0xFFFFF, overflow to 0, and then start again from 42420
+  timerOverflow++; 
+} 
 
 
