@@ -18,8 +18,9 @@ double y;
 double z;
 
 int num_of_red = 0;
+ 
 
-bool wristTilted[4] = {false, false, false, false}; //stores checks of tilted wrist 
+int wristTilted[4] = {1, 1, 1, 1};
 
 //setting up button pins 
 const int resetPin = 8;
@@ -60,6 +61,10 @@ void setup(){
   pinMode(interuptPin, INPUT);
   Serial.begin(9600);
 
+  pinMode(4, OUTPUT);
+  pinMode(5, OUTPUT);
+  pinMode(6, OUTPUT);
+
   DDRB |= (1 << 5); //enable LED port for writing
   attachInterrupt(0, pin_ISR, RISING);
   
@@ -85,21 +90,46 @@ void setup(){
 
 }
 
-bool check_consecutive_tilt(bool wristTilted[]){
+void check_consecutive_tilt(int wristTilted[]){
+  int rightTiltCounter = 0;
   for(int i=0; i<4; i++){
-    if(wristTilted[i] == false){
-      return false; 
+    if(wristTilted[i] == 1){
+      digitalWrite(4, LOW);
+      digitalWrite(6, LOW);
+      digitalWrite(5, HIGH);
+      return; 
+    }
+    else if (wristTilted[i] == 2){
+      rightTiltCounter++;
     }
   }
-  return true; 
+
+  digitalWrite(5, LOW);
+  if (rightTiltCounter == 4){
+    Serial.println("RIGHT LED");
+    digitalWrite(6, HIGH);
+    return;
+  }
+  
+  else{
+    Serial.println("LEFT LED");
+    digitalWrite(4, HIGH);
+    return;
+  }
+
+  //    PORTB |= (1 << 5);
+  //     PORTB &= ~(1 << 5); 
 }
 
-bool check_out_of_range(double x){
-  if (x > 30.00 && x < 330.00){
-     return true; 
+int checkX_out_of_range(double x){
+  if (x > 30.00 && x <= 180.00){
+     return 2; 
   }
-  else{
-    return false;
+  else if (x > 180.00 && x < 330.00){
+     return 0; 
+  }
+  else {
+    return 1;
   }
 }
 
@@ -144,7 +174,6 @@ void output_status(){
 }
 
 void loop(){
-  Serial.println("wirubwru");
 
   // set up MPU6050
   Wire.beginTransmission(MPU_addr);
@@ -179,16 +208,9 @@ void loop(){
     wristTilted[i] = wristTilted[i-1];
   }
 
-  wristTilted[0] = check_out_of_range(x);
-
-  // checking for tilted wrists 
-  if(check_consecutive_tilt(wristTilted)){
-    PORTB |= (1 << 5);
-    delay (300);  
-  }  
-  else {
-     PORTB &= ~(1 << 5);  
-  }
+  wristTilted[0] = checkX_out_of_range(x);
+   
+  check_consecutive_tilt(wristTilted);
 
   // outputting status based on pressed button 
   output_status(); 
