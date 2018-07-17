@@ -19,9 +19,16 @@ double z;
 
 int num_of_reds = 0;
 bool already_red = true;
+long rep_time_events = 0.00;
+long rep_time_seconds = 0.00;
+bool rep_already_counted = false;
+int num_of_reps = 0;
+bool weight_up;
+bool weight_down;
  
-
 int wristTilted[4] = {1, 1, 1, 1};
+bool weight_up_history[3] = {false, false, false};
+float weight_history_time[3] = {0.00, 0.00, 0.00};
 
 //setting up button pins 
 const int resetPin = 8;
@@ -110,14 +117,14 @@ void check_consecutive_tilt(int wristTilted[]){
   }
   
   if (rightTiltCounter == 4){
-    Serial.println("RIGHT LED");
+//    Serial.println("RIGHT LED");
     digitalWrite(6, HIGH);
     already_red = true;
     return;
   }
   
   else{
-    Serial.println("LEFT LED");
+//    Serial.println("LEFT LED");
     digitalWrite(4, HIGH);
     already_red = true;
     return;
@@ -151,24 +158,20 @@ void output_status(){
     Serial.print("Mistakes in workout: ");
     Serial.println(num_of_reds); //INSERT MISTAKES HERE 
     outputTime = 0; //overflow value is now zero 
-<<<<<<< HEAD
     num_of_reds = 0; 
-=======
-    num_of_red = 0; 
     TCNT1 = 0; 
->>>>>>> df3075d64511bdef524141d7bd91649ca5762a25
     reset = false; 
   } 
   else if(pause){
     double pauseTime = 1/((1/(outputTime*65536))*(16000000/1024));  
-    Serial.print("WORKOUT PAUSED");
-    Serial.println(" ");
-    Serial.print("Time Elapsed");
-    Serial.println(pauseTime); //INSERT TIME HERE 
-    Serial.print("Reps Completed");
-    Serial.println(y); //INSERT REPS HERE 
-    Serial.print("Mistakes in workout: ");
-    Serial.println(num_of_reds); //INSERT MISTAKES HERE 
+//    Serial.print("WORKOUT PAUSED");
+//    Serial.println(" ");
+//    Serial.print("Time Elapsed");
+//    Serial.println(pauseTime); //INSERT TIME HERE 
+//    Serial.print("Reps Completed");
+//    Serial.println(y); //INSERT REPS HERE 
+//    Serial.print("Mistakes in workout: ");
+//    Serial.println(num_of_reds); //INSERT MISTAKES HERE 
   }
   else if(doneWorkout){
     double workoutTime = 1/((1/(outputTime*65536))*(16000000/1024)); 
@@ -199,6 +202,86 @@ void output_status(){
   
 }
 
+void print_accelerometer_values(){
+  Serial.print("AngleX= ");
+  Serial.println(x);
+  Serial.print("AngleY= ");
+  Serial.println(y);
+  Serial.print("AngleZ= ");
+  Serial.println(z);
+  Serial.println("-----------------------------------------");
+}
+
+bool set_weight_status(){
+
+  if (y > 60 && y < 90){
+    weight_up = true;
+    weight_down = false;
+  }
+  else if (y > 275 && y < 300){
+    weight_down = true;
+    weight_up = false;
+  }
+  else{
+    weight_down = false;
+    weight_up = false;
+  }
+//  Serial.print("Weight up: ");
+//  Serial.println(weight_up);
+//  Serial.print("Weight down: ");
+//  Serial.println(weight_down);
+//  Serial.println("-----------------------------------------");
+}
+
+bool check_rep_completed(){
+  if (weight_up_history[0] == true && weight_up_history[2] == true){
+    if (weight_up_history[1] == false && rep_already_counted == false){
+      rep_time_events = weight_history_time[2] - weight_history_time[0];
+      rep_time_seconds = rep_time_events / 15625.00;
+      num_of_reps++;
+      Serial.print("Rep: ");
+      Serial.println(num_of_reps);
+//      Serial.print("Seconds: ");
+//      Serial.println(rep_time_seconds);
+      rep_already_counted = true;
+    }
+  }
+  else if (weight_up_history[0] == false){
+    rep_already_counted = false;
+  }
+}
+
+void record_rep_history(){
+  if (weight_up && !weight_up_history[0]){
+    
+    for (int i = 3; i > 0; i--){
+      weight_up_history[i] = weight_up_history[i-1];
+    }
+
+    for (int i = 3; i > 0; i--){
+      weight_history_time[i] = weight_history_time[i-1];
+    }
+    
+    weight_up_history[0] = true;
+    weight_history_time[0] = timerOverflow + TCNT1;
+  }
+
+  else if (weight_down && weight_up_history[0]){
+    
+    for (int i = 3; i > 0; i--){
+      weight_up_history[i] = weight_up_history[i-1];
+    }
+
+    for (int i = 3; i > 0; i--){
+      weight_history_time[i] = weight_history_time[i-1];
+    }
+    
+    weight_up_history[0] = false;
+    weight_history_time[0] = timerOverflow + TCNT1;
+  }
+}
+
+
 void loop(){
 
   // set up MPU6050
@@ -220,15 +303,9 @@ void loop(){
   y= RAD_TO_DEG * (atan2(-xAng, -zAng)+PI);
   z= RAD_TO_DEG * (atan2(-yAng, -xAng)+PI);
 
-  // printing values
-  Serial.print("AngleX= ");
-  Serial.println(x);
-  Serial.print("AngleY= ");
-  Serial.println(y);
-  Serial.print("AngleZ= ");
-  Serial.println(z);
-  Serial.println("-----------------------------------------");
 
+//  print_accelerometer_values();
+  
   // record new values
   for (int i = 3; i > 0; i--){
     wristTilted[i] = wristTilted[i-1];
@@ -237,26 +314,31 @@ void loop(){
   wristTilted[0] = checkX_out_of_range(x);
    
   check_consecutive_tilt(wristTilted);
+
+  set_weight_status();
+  record_rep_history();
+  check_rep_completed();
   
   resetButtonState = digitalRead(resetPin);
   doneWorkoutButtonState = digitalRead(doneWorkoutPin);
   doneSetButtonState = digitalRead(doneSetPin);
 
   // outputting status based on pressed button 
-  output_status(); 
+  output_status();
+
+  for (int i = 0; i < 3; i++){
+    Serial.print(weight_up_history[i]); 
+  }
+  Serial.println();
   
    delay(500);
 }
 
+
 // handles a press of button (triggers on press) 
 void pin_ISR()
 {
-<<<<<<< HEAD
-  // checks which button is pressed 
-=======
-  // read all buttons statuses  
-  resetButtonState = digitalRead(resetPin);
->>>>>>> df3075d64511bdef524141d7bd91649ca5762a25
+
   pauseButtonState = digitalRead(pausePin);
 
 //  Serial.print("reset: ");
