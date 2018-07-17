@@ -21,17 +21,17 @@ int num_of_red = 0;
 
 bool wristTilted[4] = {false, false, false, false}; //stores checks of tilted wrist 
 
-//setting up button ports 
+//setting up button pins 
 const int resetPin = 8;
 const int pausePin = 9;
 const int doneWorkoutPin = 10;
 const int doneSetPin = 11; 
 
 // variables to read button state 
-int resetButtonState = 0; 
-int pauseButtonState = 0; 
-int doneWorkoutButtonState = 0; 
-int doneSetButtonState = 0; 
+volatile int resetButtonState = 0; 
+volatile int pauseButtonState = 0; 
+volatile int doneWorkoutButtonState = 0; 
+volatile int doneSetButtonState = 0; 
 
 // variables to change in interrupt handler if pressed is true for respective button 
 volatile bool reset = false; 
@@ -42,12 +42,16 @@ volatile bool doneSet = false;
 // Incrementer for number of times overflow occurs 
 int timerOverflow = 0; 
 
+// Variable to store temporary time from timer 
+volatile long outputTime = 0; 
 
+// Checking if pause is already enabled 
+volatile bool pauseAlreadypressed = false; 
 
 void setup(){
   cli(); //disable interrupts 
  
-//   setup MPU6050
+  // setup MPU6050
   Wire.begin();
   Wire.beginTransmission(MPU_addr);
   Wire.write(0x6B);
@@ -67,13 +71,17 @@ void setup(){
   OCR1A=10000;//setOutputCompareValueA
   OCR1B=50000;//setOutputCompareValueB
 
+  TCCR0B |= _BV(CS02); // Set or Clear bit CS02 of register TCCROB, the most signifigant bit of Timer0's prescaler. See page 110 of the datasheet. TCCR0B |= (_BV(CS02) sets CS02 to HIGH, TCCR0B &= ~(_BV(CS02) sets CS02 to LOW.
+  TCCR0B |= _BV(CS00); // Set or Clear bit CS00 of register TCCROB, the least signifigant bit of Timer0's prescaler. See page 110 of the datasheet. TCCR0B |= (_BV(CS00) sets CS00 to HIGH, TCCR0B &= ~(_BV(CS00) sets CS00 to LOW.
+
+
   sei(); //enable interrupts 
 
   //setting up buttons as input 
-  pinMode(resetPin, INPUT_PULLUP);
-  pinMode(pausePin, INPUT_PULLUP);
-  pinMode(doneWorkoutPin, INPUT_PULLUP);
-  pinMode(doneSetPin, INPUT_PULLUP);
+  pinMode(resetPin, INPUT);
+  pinMode(pausePin, INPUT);
+  pinMode(doneWorkoutPin, INPUT);
+  pinMode(doneSetPin, INPUT);
 
 }
 
@@ -97,19 +105,29 @@ bool check_out_of_range(double x){
 
 void output_status(){
   if(reset){
+    double resetTime = 1/((1/(outputTime*65536))*(16000000/1024));    
     Serial.print("RESET");
     Serial.println(" ");
     Serial.print("Time Elapsed");
-    Serial.println(x); //INSERT TIME HERE 
+    Serial.println(resetTime); //INSERT TIME HERE 
     Serial.print("Reps Completed");
     Serial.println(y); //INSERT REPS HERE 
     Serial.print("Mistakes: ");
     Serial.println(z); //INSERT MISTAKES HERE 
+    outputTime = 0; //overflow value is now zero 
     reset = false; 
   } 
   else if(pause){
     Serial.print("WORKOUT PAUSED");
     Serial.println(" ");
+    Serial.print("Time Elapsed");
+    Serial.println(resetTime); //INSERT TIME HERE 
+    Serial.print("Reps Completed");
+    Serial.println(y); //INSERT REPS HERE 
+    Serial.print("Mistakes: ");
+    Serial.println(z); //INSERT MISTAKES HERE 
+    outputTime = 0; //overflow value is now zero 
+    reset = false; 
     pause = false; 
   }
   else if(doneWorkout){
@@ -175,7 +193,6 @@ void loop(){
   // outputting status based on pressed button 
   output_status(); 
 
-
   delay(500);
 }
 
@@ -191,9 +208,19 @@ void pin_ISR()
   // changes volatile buttons appropriately 
   if (resetButtonState == HIGH){
     reset = true; 
+    outputTime = TCNT1; 
+ //   TCNT1 = 0; // Start from beginning
   }
   else if(pauseButtonState == HIGH){
-    pause = true; 
+    if (pause == false ){
+      outputTime = TCNT1;
+      TCNTI = 0; //stop;  
+    }
+    else if (pause == true) {
+      
+    } 
+    pause = !pause;
+
   }
   else if(doneWorkoutButtonState == HIGH){
     doneWorkout = true; 
@@ -206,6 +233,6 @@ void pin_ISR()
 ISR (TIMER1_OVF_vect){
   TCNT1 = 42420; // count up to 0xFFFFF, overflow to 0, and then start again from 42420
   timerOverflow++; 
-}
+} 
 
 
