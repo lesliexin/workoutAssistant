@@ -24,8 +24,7 @@ bool already_red = true;
 int wristTilted[4] = {1, 1, 1, 1};
 
 //setting up button pins 
-const int resetPin = 8;
-const int pausePin = 9;
+const int resetPin = 9;
 const int doneWorkoutPin = 10;
 const int doneSetPin = 11; 
 
@@ -76,7 +75,6 @@ void setup(){
 
   //setting up buttons as input 
   pinMode(resetPin, INPUT);
-  pinMode(pausePin, INPUT);
   pinMode(doneWorkoutPin, INPUT);
   pinMode(doneSetPin, INPUT);
 
@@ -136,7 +134,7 @@ int checkX_out_of_range(double x){
 
 double get_time(long of, long ct){
   double totalTime = 0; 
-  totalTime = 1/((1/(of+ct))*(16000000/1024)); 
+  totalTime = (of+ct)/((double)15625); 
   
   return totalTime; 
 }
@@ -156,8 +154,8 @@ void breakTime(){
         //nothing
         }
       else{
-        Serial.print("15 seconds left"); 
-        Serial.println("");
+        Serial.println("15 seconds left"); 
+        Serial.print("");
         firstAlreadyOutputted = true; 
         }
       }
@@ -167,8 +165,8 @@ void breakTime(){
         //nothing
         }
       else{
-        Serial.print("10 seconds left"); 
-        Serial.println(""); 
+        Serial.println("10 seconds left"); 
+        Serial.print(""); 
         midAlreadyOutputted = true; 
         }
       }
@@ -178,8 +176,8 @@ void breakTime(){
         //nothing
         }
       else{
-        Serial.print("5 seconds left"); 
-        Serial.println(""); 
+        Serial.println("5 seconds left"); 
+        Serial.print(""); 
         lastAlreadyOutputted = true; 
         }
       }
