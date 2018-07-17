@@ -145,6 +145,7 @@ void output_status(){
     Serial.println(num_of_red); //INSERT MISTAKES HERE 
     outputTime = 0; //overflow value is now zero 
     num_of_red = 0; 
+    TCNT1 = 0; 
     reset = false; 
   } 
   else if(pause){
@@ -181,7 +182,7 @@ void output_status(){
     Serial.print("Reps Completed");
     Serial.println(y); //INSERT REPS HERE 
     Serial.print("Mistakes in workout: ");
-    Serial.println(num_of_red); //INSERT MISTAKES HERE 
+    Serial.println(num_of_reds); //INSERT MISTAKES HERE 
     doneWorkout = false; 
   }
   
@@ -235,7 +236,7 @@ void loop(){
 // handles a press of button (triggers on press) 
 void pin_ISR()
 {
-  // checks which button is pressed 
+  // read all buttons statuses  
   resetButtonState = digitalRead(resetPin);
   pauseButtonState = digitalRead(pausePin);
   doneWorkoutButtonState = digitalRead(doneWorkoutPin);
@@ -245,7 +246,6 @@ void pin_ISR()
   if (resetButtonState == HIGH){
     reset = true; 
     outputTime = TCNT1; 
- //   TCNT1 = 0; // Start from beginning
   }
   
   else if(pauseButtonState == HIGH){
